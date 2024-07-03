@@ -12,5 +12,3 @@ bin
 *.swp
 *.swo
 *~
-kubeserver.yml
-my-values.yaml
