@@ -23,7 +23,8 @@ general:
     subPaths:
       tv: media/tv
       movies: media/movies
-      book: media/books
+      audiobooks: media/audiobooks
+      books: media/books
       downloads: downloads
       transmission: transmission
       sabnzbd: sabnzbd
@@ -347,7 +348,39 @@ readarr:
       secretName: ""
   resources: {}
   volume: {}
-  # name: pvc-radarr-config
+  # name: pvc-readarr-config
+  # storageClassName: longhorn
+  # annotations: {}
+  # labels: {}
+  # accessModes: ReadWriteOnce
+  # storage: 5Gi
+  # selector: {}
+
+bazarr:
+  enabled: true
+  container:
+    image: lscr.io/linuxserver/bazarr
+    tag: latest
+    nodeSelector: {}
+    port: 6767
+  service:
+    type: ClusterIP
+    port: 6767
+    nodePort:
+    # Defines an additional LB service, requires cloud provider service or MetalLB
+    extraLBService: true
+    extraLBAnnotations:
+        metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
+  ingress:
+    enabled: false
+    annotations: {}
+    path: /bazarr
+    tls:
+      enabled: false
+      secretName: ""
+  resources: {}
+  volume: {}
+  # name: pvc-bazarr-config
   # storageClassName: longhorn
   # annotations: {}
   # labels: {}

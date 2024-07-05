@@ -72,6 +72,12 @@ spec:
             - name: mediaserver-volume
               mountPath: /tv
               subPath: "{{ .Values.general.storage.subPaths.tv }}"
+            - name: mediaserver-volume
+              mountPath: "/books"
+              subPath: "{{ .Values.general.storage.subPaths.books }}"
+            - name: mediaserver-volume
+              mountPath: "/audiobooks"
+              subPath: "{{ .Values.general.storage.subPaths.audiobooks }}"  
           {{- with .Values.jellyfin.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
