@@ -1,0 +1,227 @@
+{{ if .Values.readarr.enabled }}
+---
+### CONFIGMAP
+## INIT-CONTAINER
+---
+apiVersion: v1
+data:
+  config.xml: |
+    <Config>
+      <UrlBase>{{ .Values.readarr.ingress.path }}</UrlBase>
+    </Config>
+  init-readarr.sh: |
+    #!/bin/bash
+    echo "### Initializing config ###"
+    if [ ! -f /readarr-config/config.xml ]; then
+      cp -n /init-readarr/config.xml /readarr-config/config.xml
+      echo "### No configuration found, intialized with default settings ###"
+    fi
+kind: ConfigMap
+metadata:
+  name: init-readarr-cm
+---
+## APPLICATION
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: readarr-config
+data:
+  PGID: "{{ .Values.general.pgid }}"
+  PUID: "{{ .Values.general.puid }}"
+---
+### DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: readarr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-mediaserver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-mediaserver.selectorLabels" . | nindent 8 }}
+        app: readarr
+    spec:
+      initContainers:
+        - name: config-readarr
+          image: docker.io/ubuntu:groovy
+          command: ["/init-readarr/init-readarr.sh"]
+          volumeMounts:
+            - mountPath: /init-readarr
+              name: init-files-readarr
+          {{- if .Values.readarr.volume }}
+            - name: {{ .Values.readarr.volume.name }}
+              mountPath: /readarr-config
+          {{- else }}
+            - name: mediaserver-volume
+              mountPath: /readarr-config
+              subPath: "{{ .Values.general.storage.subPaths.config }}/readarr"
+          {{- end }}
+          securityContext:
+            runAsUser: {{ .Values.general.puid }}
+            runAsGroup: {{ .Values.general.pgid }}
+      containers:
+        - name: {{ .Chart.Name }}
+          envFrom:
+            - configMapRef:
+                name: readarr-config
+          image: "{{ .Values.readarr.container.image }}:{{ .Values.readarr.container.tag | default .Values.general.image_tag }}"
+          imagePullPolicy: Always
+          readinessProbe:
+            httpGet:
+              path: "{{ .Values.readarr.ingress.path }}/ping"
+              port: {{ .Values.readarr.container.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 20
+          ports:
+            - name: readarr-port
+              containerPort: {{ .Values.readarr.container.port }}
+              protocol: TCP
+          volumeMounts:
+          {{- if .Values.readarr.volume }}
+            - name: {{ .Values.readarr.volume.name }}
+              mountPath: /config
+          {{- else }}
+            - name: mediaserver-volume
+              mountPath: "/config"
+              subPath: "{{ .Values.general.storage.subPaths.config }}/readarr"
+          {{- end }}
+            - name: mediaserver-volume
+              mountPath: "/downloads"
+              subPath: "{{ .Values.general.storage.subPaths.downloads }}"
+            - name: mediaserver-volume
+              mountPath: "/books"
+              subPath: "{{ .Values.general.storage.subPaths.books }}"
+          {{- with .Values.readarr.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if not .Values.general.storage.customVolume }}
+        - name: mediaserver-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.general.storage.pvcName }}
+        {{- else }}
+        - name: mediaserver-volume
+          {{- toYaml .Values.general.storage.volumes | nindent 10 }}
+        {{- end }}
+        {{- if .Values.readarr.volume }}
+        - name: {{ .Values.readarr.volume.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.readarr.volume.name }}
+        {{- end }}
+        - name: init-files-readarr
+          configMap:
+            defaultMode: 493
+            name: init-readarr-cm
+      {{- with merge .Values.readarr.container.nodeSelector .Values.general.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if eq .Values.general.podDistribution "cluster" }}
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - {{ .Release.Name }}
+              topologyKey: "kubernetes.io/hostname"
+            weight: 100
+      {{- else if eq .Values.general.podDistribution "spread" }}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: "ScheduleAnyway"
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- end }}
+---
+### SERVICES
+apiVersion: v1
+kind: Service
+metadata:
+  name: readarr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.readarr.service.type }}
+  ports:
+    - port: {{ .Values.readarr.service.port }}
+      targetPort: {{ .Values.readarr.container.port }}
+      protocol: TCP
+{{ if eq .Values.readarr.service.type "NodePort" }}
+      nodePort: {{ .Values.readarr.service.nodePort }}
+{{ end }}
+      name: readarr-port
+  selector:
+    app: readarr
+
+---
+{{ if .Values.readarr.service.extraLBService }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: readarr-lb
+  {{- with .Values.readarr.service.extraLBAnnotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  type: LoadBalancer
+  ports:
+    - port: {{ .Values.readarr.service.port }}
+      targetPort: {{ .Values.readarr.container.port }}
+      protocol: TCP
+      name: readarr-port
+  selector:
+    app: readarr
+{{ end }}
+---
+### INGRESS ###
+{{ if .Values.readarr.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: readarr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+  {{- with .Values.readarr.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+{{- if .Values.readarr.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.general.ingress_host | quote }}
+      secretName: {{ .Values.readarr.ingress.tls.secretName }}
+{{ end }}
+  ingressClassName: {{ .Values.general.ingress.ingressClassName }}
+  rules:
+    - host: {{ .Values.general.ingress_host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.readarr.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: readarr
+                port:
+                  number: {{ .Values.readarr.service.port }}
+{{ end }}
+{{ end }}

@@ -129,17 +129,7 @@ spec:
       tls:
         enabled: false
         secretName: ""
-    resources: {}
-    service:
-      extraLBAnnotations: {}
-      extraLBService: false
-      nodePort: null
-      port: 7878
-      type: ClusterIP
-    volume: {}
-  sabnzbd:
-    container:
-      image: docker.io/linuxserver/sabnzbd
+    resources: {}radarrd
       nodeSelector: {}
       port:
         http: 8080
@@ -223,4 +213,25 @@ spec:
         nodePort: null
         port: 9091
         type: ClusterIP
+    volume: {}
+  readarr:
+    container:
+      image: docker.io/linuxserver/readarr
+      nodeSelector: {}
+      port: 7878
+    enabled: true
+    ingress:
+      annotations: {}
+      enabled: true
+      path: /readarr
+      tls:
+        enabled: false
+        secretName: ""
+    resources: {}
+    service:
+      extraLBAnnotations: {}
+      extraLBService: false
+      nodePort: null
+      port: 7878
+      type: ClusterIP
     volume: {}

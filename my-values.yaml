@@ -23,6 +23,7 @@ general:
     subPaths:
       tv: media/tv
       movies: media/movies
+      book: media/books
       downloads: downloads
       transmission: transmission
       sabnzbd: sabnzbd
@@ -154,8 +155,9 @@ transmission:
       nodePort:
       nodePortUDP:
       # Defines an additional LB service, requires cloud provider service or MetalLB
-      extraLBService: false
-      extraLBAnnotations: {}
+      extraLBService: true
+      extraLBAnnotations:
+        metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
     enabled: true
     annotations: {}
@@ -320,3 +322,35 @@ jellyfin:
    # accessModes: ReadWriteOnce
    # storage: 5Gi
    # selector: {}
+
+readarr:
+  enabled: true
+  container:
+    image: lscr.io/linuxserver/readarr
+    tag: develop
+    nodeSelector: {}
+    port: 8787
+  service:
+    type: ClusterIP
+    port: 8787
+    nodePort:
+    # Defines an additional LB service, requires cloud provider service or MetalLB
+    extraLBService: true
+    extraLBAnnotations:
+        metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
+  ingress:
+    enabled: true
+    annotations: {}
+    path: /readarr
+    tls:
+      enabled: false
+      secretName: ""
+  resources: {}
+  volume: {}
+  # name: pvc-radarr-config
+  # storageClassName: longhorn
+  # annotations: {}
+  # labels: {}
+  # accessModes: ReadWriteOnce
+  # storage: 5Gi
+  # selector: {}
