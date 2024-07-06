@@ -47,7 +47,7 @@ sonarr:
     type: ClusterIP
     port: 8989
     nodePort:
-    extraLBService: true
+    extraLBService: false
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
     # Defines an additional LB service, requires cloud provider service or MetalLB
@@ -81,7 +81,7 @@ radarr:
     port: 7878
     nodePort:
     # Defines an additional LB service, requires cloud provider service or MetalLB
-    extraLBService: true
+    extraLBService: false
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
 
@@ -336,7 +336,7 @@ readarr:
     port: 8787
     nodePort:
     # Defines an additional LB service, requires cloud provider service or MetalLB
-    extraLBService: true
+    extraLBService: false
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
@@ -387,3 +387,35 @@ bazarr:
   # accessModes: ReadWriteOnce
   # storage: 5Gi
   # selector: {}
+
+jellyseerr:
+  enabled: true
+  container:
+    image: fallenbagel/jellyseerr
+    tag: latest
+    nodeSelector: {}
+    port: 5055
+  service:
+    type: ClusterIP
+    port: 5055
+    nodePort:
+    # Defines an additional LB service, requires cloud provider service or MetalLB
+    extraLBService: true
+    extraLBAnnotations:
+        metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
+  ingress:
+    enabled: false
+    annotations: {}
+    path: /jellyseerr
+    tls:
+      enabled: false
+      secretName: ""
+  resources: {}
+  volume: {}
+  # name: pvc-jellyseerr-config
+  # storageClassName: longhorn
+  # annotations: {}
+  # labels: {}
+  # accessModes: ReadWriteOnce
+  # storage: 5Gi
+  # selector: {}  
