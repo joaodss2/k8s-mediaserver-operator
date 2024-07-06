@@ -1,0 +1,221 @@
+{{ if .Values.jellyseerr.enabled }}
+---
+### CONFIGMAP
+## INIT-CONTAINER
+---
+apiVersion: v1
+data:
+  config.xml: |
+    <Config>
+      <UrlBase>{{ .Values.jellyseerr.ingress.path }}</UrlBase>
+    </Config>
+  init-jellyseerr.sh: |
+    #!/bin/bash
+    echo "### Initializing config ###"
+    if [ ! -f /jellyseerr-config/config.xml ]; then
+      cp -n /init-jellyseerr/config.xml /jellyseerr-config/config.xml
+      echo "### No configuration found, intialized with default settings ###"
+    fi
+kind: ConfigMap
+metadata:
+  name: init-jellyseerr-cm
+---
+## APPLICATION
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyseerr-config
+data:
+  PGID: "{{ .Values.general.pgid }}"
+  PUID: "{{ .Values.general.puid }}"
+---
+### DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyseerr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "k8s-mediaserver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-mediaserver.selectorLabels" . | nindent 8 }}
+        app: jellyseerr
+    spec:
+      initContainers:
+        - name: config-jellyseerr
+          image: docker.io/ubuntu:groovy
+          command: ["/init-jellyseerr/init-jellyseerr.sh"]
+          volumeMounts:
+            - mountPath: /init-jellyseerr
+              name: init-files-jellyseerr
+          {{- if .Values.jellyseerr.volume }}
+            - name: {{ .Values.jellyseerr.volume.name }}
+              mountPath: /jellyseerr-config
+          {{- else }}
+            - name: mediaserver-volume
+              mountPath: /jellyseerr-config
+              subPath: "{{ .Values.general.storage.subPaths.config }}/jellyseerr"
+          {{- end }}
+          securityContext:
+            runAsUser: {{ .Values.general.puid }}
+            runAsGroup: {{ .Values.general.pgid }}
+      containers:
+        - name: {{ .Chart.Name }}
+          envFrom:
+            - configMapRef:
+                name: jellyseerr-config
+          image: "{{ .Values.jellyseerr.container.image }}:{{ .Values.jellyseerr.container.tag | default .Values.general.image_tag }}"
+          imagePullPolicy: Always
+          readinessProbe:
+            httpGet:
+              path: "{{ .Values.jellyseerr.ingress.path }}/ping"
+              port: {{ .Values.jellyseerr.container.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 20
+          ports:
+            - name: jellyseerr-port
+              containerPort: {{ .Values.jellyseerr.container.port }}
+              protocol: TCP
+          volumeMounts:
+          {{- if .Values.jellyseerr.volume }}
+            - name: {{ .Values.jellyseerr.volume.name }}
+              mountPath: /config
+          {{- else }}
+            - name: mediaserver-volume
+              mountPath: "/config"
+              subPath: "{{ .Values.general.storage.subPaths.config }}/jellyseerr"
+          {{- end }}
+          {{- with .Values.jellyseerr.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if not .Values.general.storage.customVolume }}
+        - name: mediaserver-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.general.storage.pvcName }}
+        {{- else }}
+        - name: mediaserver-volume
+          {{- toYaml .Values.general.storage.volumes | nindent 10 }}
+        {{- end }}
+        {{- if .Values.jellyseerr.volume }}
+        - name: {{ .Values.jellyseerr.volume.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.jellyseerr.volume.name }}
+        {{- end }}
+        - name: init-files-jellyseerr
+          configMap:
+            defaultMode: 493
+            name: init-jellyseerr-cm
+      {{- with merge .Values.jellyseerr.container.nodeSelector .Values.general.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if eq .Values.general.podDistribution "cluster" }}
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - {{ .Release.Name }}
+              topologyKey: "kubernetes.io/hostname"
+            weight: 100
+      {{- else if eq .Values.general.podDistribution "spread" }}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: "ScheduleAnyway"
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- end }}
+---
+### SERVICES
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.jellyseerr.service.type }}
+  ports:
+    - port: {{ .Values.jellyseerr.service.port }}
+      targetPort: {{ .Values.jellyseerr.container.port }}
+      protocol: TCP
+{{ if eq .Values.jellyseerr.service.type "NodePort" }}
+      nodePort: {{ .Values.jellyseerr.service.nodePort }}
+{{ end }}
+      name: jellyseerr-port
+  selector:
+    app: jellyseerr
+
+---
+{{ if .Values.jellyseerr.service.extraLBService }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyseerr-lb
+  {{- with .Values.jellyseerr.service.extraLBAnnotations }}
+  annotations:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+spec:
+  type: LoadBalancer
+  ports:
+    - port: {{ .Values.jellyseerr.service.port }}
+      targetPort: {{ .Values.jellyseerr.container.port }}
+      protocol: TCP
+      name: jellyseerr-port
+  selector:
+    app: jellyseerr
+{{ end }}
+---
+### INGRESS ###
+{{ if .Values.jellyseerr.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jellyseerr
+  labels:
+    {{- include "k8s-mediaserver.labels" . | nindent 4 }}
+  {{- with .Values.jellyseerr.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+{{- if .Values.jellyseerr.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.general.ingress_host | quote }}
+      secretName: {{ .Values.jellyseerr.ingress.tls.secretName }}
+{{ end }}
+  ingressClassName: {{ .Values.general.ingress.ingressClassName }}
+  rules:
+    - host: {{ .Values.general.ingress_host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.jellyseerr.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: jellyseerr
+                port:
+                  number: {{ .Values.jellyseerr.service.port }}
+{{ end }}
+{{ end }}
