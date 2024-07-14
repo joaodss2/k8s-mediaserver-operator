@@ -11,7 +11,7 @@ general:
   #UID to run the process with
   puid: 1000
   # GID to run the process with
-  pgid: 1001
+  pgid: 1000
   # Persistent storage selections and pathing
   storage:
     customVolume: false # set to true if not using a PVC (must provide volume below)
@@ -31,7 +31,7 @@ general:
       config: config
     volumes:
       nfs:
-        server: { 192.168.1.200 }
+        server: { 192.168.1.116 }
         path: /mediaserver
   ingress:
     ingressClassName: ""
