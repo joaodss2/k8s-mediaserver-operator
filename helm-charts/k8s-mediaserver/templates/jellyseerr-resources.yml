@@ -91,7 +91,7 @@ spec:
               mountPath: /config
           {{- else }}
             - name: mediaserver-volume
-              mountPath: "/config"
+              mountPath: "/app/config"
               subPath: "{{ .Values.general.storage.subPaths.config }}/jellyseerr"
           {{- end }}
           {{- with .Values.jellyseerr.resources }}
