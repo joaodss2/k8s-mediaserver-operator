@@ -5,10 +5,10 @@
 general:
   ingress_host: 192.168.1.214.sslip.io
   plex_ingress_host: 192.168.1.214.sslip.io
-  jellyfin_ingress_host: 192.168.1.214.sslip.io
+  jellyfin_ingress_host: jellyfin.7kgang.org
+  jellyseerr_ingress_host: jellyseerr.7kgang.org
   image_tag: latest
-  podDistribution: cluster # can be "spread" or "cluster"
-  #UID to run the process with
+  podDistribution: cluster
   puid: 1000
   # GID to run the process with
   pgid: 1000
@@ -34,7 +34,7 @@ general:
         server: { 192.168.1.116 }
         path: /mediaserver
   ingress:
-    ingressClassName: ""
+    ingressClassName: "internet-nginx "
   nodeSelector: {}
 
 sonarr:
@@ -298,12 +298,11 @@ jellyfin:
     type: ClusterIP
     port: 8096
     nodePort:
-    # Defines an additional LB service, requires cloud provider service or MetalLB
     extraLBService: true
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
-    enabled: false
+    enabled: true
     annotations: {}
     tls:
       enabled: false
@@ -404,7 +403,7 @@ jellyseerr:
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
-    enabled: false
+    enabled: true
     annotations: {}
     path: /jellyseerr
     tls:

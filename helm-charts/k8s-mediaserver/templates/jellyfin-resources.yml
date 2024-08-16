@@ -158,8 +158,9 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: jellyfin
+                name: jellyfin-lb
                 port:
                   number: {{ .Values.jellyfin.service.port }}
 {{ end }}
 {{ end }}
+{{ .Values.jellyseerr.ingress.path }}

@@ -202,19 +202,19 @@ spec:
 {{- if .Values.jellyseerr.ingress.tls.enabled }}
   tls:
     - hosts:
-        - {{ .Values.general.ingress_host | quote }}
+        - {{ .Values.general.jellyseerr_ingress_host | quote }}
       secretName: {{ .Values.jellyseerr.ingress.tls.secretName }}
 {{ end }}
   ingressClassName: {{ .Values.general.ingress.ingressClassName }}
   rules:
-    - host: {{ .Values.general.ingress_host | quote }}
+    - host: {{ .Values.general.jellyseerr_ingress_host | quote }}
       http:
         paths:
-          - path: {{ .Values.jellyseerr.ingress.path }}
+          - path: /
             pathType: Prefix
             backend:
               service:
-                name: jellyseerr
+                name: jellyseerr-lb
                 port:
                   number: {{ .Values.jellyseerr.service.port }}
 {{ end }}
