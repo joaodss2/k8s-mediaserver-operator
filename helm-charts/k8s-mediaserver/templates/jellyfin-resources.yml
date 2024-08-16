@@ -163,4 +163,3 @@ spec:
                   number: {{ .Values.jellyfin.service.port }}
 {{ end }}
 {{ end }}
-{{ .Values.jellyseerr.ingress.path }}
