@@ -298,7 +298,7 @@ jellyfin:
     type: ClusterIP
     port: 8096
     nodePort:
-    extraLBService: true
+    extraLBService: false
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
@@ -399,7 +399,7 @@ jellyseerr:
     port: 5055
     nodePort:
     # Defines an additional LB service, requires cloud provider service or MetalLB
-    extraLBService: true
+    extraLBService: false
     extraLBAnnotations:
         metallb.universe.tf/allow-shared-ip: "mediaserver-ip-key"
   ingress:
