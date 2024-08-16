@@ -214,7 +214,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: jellyseerr-lb
+                name: jellyseerr
                 port:
                   number: {{ .Values.jellyseerr.service.port }}
 {{ end }}
