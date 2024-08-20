@@ -149,7 +149,7 @@ spec:
         - {{ .Values.general.jellyfin_ingress_host | quote }}
       secretName: {{ .Values.jellyfin.ingress.tls.secretName }}
 {{ end }}
-  ingressClassName: {{ .Values.general.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.general.ingress.internetNginxName }}
   rules:
     - host: {{ .Values.general.jellyfin_ingress_host | quote }}
       http:

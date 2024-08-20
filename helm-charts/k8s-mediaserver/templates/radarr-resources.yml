@@ -211,7 +211,7 @@ spec:
         - {{ .Values.general.ingress_host | quote }}
       secretName: {{ .Values.radarr.ingress.tls.secretName }}
 {{ end }}
-  ingressClassName: {{ .Values.general.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.general.ingress.localNginxName }}
   rules:
     - host: {{ .Values.general.ingress_host | quote }}
       http:
