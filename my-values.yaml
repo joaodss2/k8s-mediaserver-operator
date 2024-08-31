@@ -31,7 +31,7 @@ general:
       config: config
     volumes:
       nfs:
-        server: { 192.168.1.116 }
+        server: { 192.168.1.82 }
         path: /mediaserver
   ingress:
     internetNginxName: "internet-nginx"
@@ -183,7 +183,7 @@ transmission:
     selector: {}
 
 sabnzbd:
-  enabled: false
+  enabled: true
   container:
     image: docker.io/linuxserver/sabnzbd
     nodeSelector: {}
